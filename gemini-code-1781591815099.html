@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Duplicate Auditor Portal</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- SheetJS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <header class="bg-indigo-600 text-white shadow-md p-5 mb-6">
+        <div class="container mx-auto">
+            <h1 class="text-2xl font-bold">🔍 Excel Duplicate Checker & Auditor Portal</h1>
+            <p class="text-sm opacity-90 text-indigo-100">Pagsamahin ang mga sheet at i-highlight ang lahat ng may duplicate na data</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 flex-1 max-w-5xl">
+        <!-- Upload Card -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
+            <h2 class="text-lg font-semibold mb-2">I-upload ang iyong Excel File</h2>
+            <p class="text-sm text-gray-500 mb-4">I-upload ang file na <code class="bg-gray-100 px-1 py-0.5 rounded text-red-600 font-mono">nasa excel file type</code> para makita ang mga doble.</p>
+            
+            <div class="flex items-center justify-center w-full">
+                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                    <div class="flex flex-col items-center justify-center pt-4 pb-5">
+                        <svg class="w-10 h-10 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <p class="mb-1 text-sm text-gray-500"><span class="font-semibold">I-click para mag-upload</span> o i-drag dito</p>
+                        <p class="text-xs text-gray-400">Excel Files (.xlsx, .xls)</p>
+                    </div>
+                    <input id="excel-file" type="file" accept=".xlsx, .xls" class="hidden" />
+                </label>
+            </div>
+
+            <div id="status" class="mt-4 text-sm font-medium text-center p-3 rounded-lg hidden"></div>
+
+            <div class="mt-6 flex justify-center">
+                <button id="download-btn" disabled class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow disabled:opacity-40 disabled:cursor-not-allowed transition text-md">
+                    📥 I-download ang Masterlist (May Duplicate Indicator)
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Statistics Card (Bagong Dagdag) -->
+        <div id="summary-card" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 hidden">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Kabuuang Rows (Sheet 1 + Sheet 2)</p>
+                    <h3 id="total-rows-count" class="text-2xl font-bold text-gray-900 mt-1">0</h3>
+                </div>
+                <span class="p-3 bg-blue-50 text-blue-600 rounded-lg text-lg">📊</span>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Mga Pangalang Nag-Duplicate</p>
+                    <h3 id="duplicate-rows-count" class="text-2xl font-bold text-red-600 mt-1">0</h3>
+                </div>
+                <span class="p-3 bg-red-50 text-red-600 rounded-lg text-lg">⚠️</span>
+            </div>
+        </div>
+
+        <!-- Preview Card -->
+        <div id="preview-card" class="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Preview ng Unang 20 Rows</h2>
+                <div class="text-xs space-x-2">
+                    <span class="bg-red-100 text-red-800 font-medium px-2 py-1 rounded-full">🔴 May Duplicate</span>
+                    <span class="bg-gray-100 text-gray-800 font-medium px-2 py-1 rounded-full">⚪ Isang beses lang lumitaw</span>
+                </div>
+            </div>
+            <div class="overflow-x-auto max-h-96 rounded-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 text-sm text-left">
+                    <thead class="bg-gray-50 sticky top-0 font-bold text-gray-700 uppercase text-xs">
+                        <tr>
+                            <th class="px-4 py-3">No.</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Last Name</th>
+                            <th class="px-4 py-3">First Name</th>
+                            <th class="px-4 py-3">Middle Name</th>
+                            <th class="px-4 py-3">Extension Name</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-tbody" class="divide-y divide-gray-200 bg-white text-gray-700">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let finalAuditedData = [];
+
+        document.getElementById('excel-file').addEventListener('change', handleFile, false);
+        document.getElementById('download-btn').addEventListener('click', downloadExcel, false);
+
+        function showStatus(message, type) {
+            const el = document.getElementById('status');
+            el.innerHTML = message;
+            el.className = `mt-4 text-sm font-medium text-center p-3 rounded-lg `;
+            if(type === 'error') el.className += 'bg-red-50 text-red-700 border border-red-200';
+            else if(type === 'success') el.className += 'bg-green-50 text-green-700 border border-green-200';
+            else el.className += 'bg-blue-50 text-blue-700 border border-blue-200';
+            el.classList.remove('hidden');
+        }
+
+        function handleFile(e) {
+            const files = e.target.files;
+            if (!files.length) return;
+            const file = files[0];
+            
+            showStatus('⏳ Sinusuri ang mga duplicate... Sandali lamang.', 'info');
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    let sheet1Keys = new Set();
+                    let sheet2Keys = new Set();
+                    let allCombinedRows = [];
+
+                    // 1. Basahin ang Sheet1
+                    if (workbook.Sheets['Sheet1']) {
+                        const json1 = XLSX.utils.sheet_to_json(workbook.Sheets['Sheet1'], { defval: "" });
+                        json1.forEach(row => {
+                            let ln = (row['LASTNAME'] || row['lastname'] || "").toString().trim();
+                            let fn = (row['first name'] || row['FIRST NAME'] || "").toString().trim();
+                            let mn = (row['middle name'] || row['MIDDLE NAME'] || "").toString().trim();
+                            let ext = (row['Extension Name'] || row['EXTENSION NAME'] || "").toString().trim();
+                            
+                            if(ln || fn) {
+                                const key = `${ln.toUpperCase()}|${fn.toUpperCase()}|${mn.toUpperCase()}|${ext.toUpperCase()}`;
+                                sheet1Keys.add(key);
+                                allCombinedRows.push({ source: 'Sheet1', ln, fn, mn, ext, key });
+                            }
+                        });
+                    }
+
+                    // 2. Basahin ang Sheet2
+                    if (workbook.Sheets['Sheet2']) {
+                        const json2 = XLSX.utils.sheet_to_json(workbook.Sheets['Sheet2'], { defval: "" });
+                        json2.forEach(row => {
+                            let ln = (row['LASTNAME'] || row['lastname'] || "").toString().trim();
+                            let fn = (row['first name'] || row['FIRST NAME'] || "").toString().trim();
+                            let mn = (row['middle name'] || row['MIDDLE NAME'] || "").toString().trim();
+                            let ext = (row['Extension Name'] || row['EXTENSION NAME'] || "").toString().trim();
+                            
+                            if(ln || fn) {
+                                const key = `${ln.toUpperCase()}|${fn.toUpperCase()}|${mn.toUpperCase()}|${ext.toUpperCase()}`;
+                                sheet2Keys.add(key);
+                                allCombinedRows.push({ source: 'Sheet2', ln, fn, mn, ext, key });
+                            }
+                        });
+                    }
+
+                    if (allCombinedRows.length === 0) {
+                        throw new Error("Walang data na nakita sa Sheet1 o Sheet2.");
+                    }
+
+                    // 3. I-audit ang bawat row
+                    let count = 1;
+                    let duplicateCounter = 0;
+                    
+                    finalAuditedData = allCombinedRows.map(row => {
+                        let status = "Unique";
+                        if (sheet1Keys.has(row.key) && sheet2Keys.has(row.key)) {
+                            status = "⚠️ DUPLICATE (Found in Both Sheets)";
+                            duplicateCounter++;
+                        } else {
+                            status = `Unique (${row.source} Only)`;
+                        }
+
+                        return {
+                            "No.": count++,
+                            "Status": status,
+                            "LASTNAME": row.ln,
+                            "first name": row.fn,
+                            "middle name": row.mn,
+                            "Extension Name": row.ext
+                        };
+                    });
+
+                    // Dito na nakalagay ang tamang IDs para sa Summary Cards!
+                    document.getElementById('total-rows-count').innerText = finalAuditedData.length;
+                    document.getElementById('duplicate-rows-count').innerText = duplicateCounter;
+                    
+                    // Ipakita ang Summary Card at Preview Card
+                    document.getElementById('summary-card').classList.remove('hidden');
+                    document.getElementById('preview-card').classList.remove('hidden');
+                    
+                    // I-update ang screen preview
+                    const tbody = document.getElementById('preview-tbody');
+                    tbody.innerHTML = '';
+                    
+                    finalAuditedData.slice(0, 20).forEach(row => {
+                        const tr = document.createElement('tr');
+                        const isDup = row["Status"].includes("DUPLICATE");
+                        tr.className = isDup ? "bg-red-50 hover:bg-red-100 transition font-medium" : "hover:bg-gray-50 transition";
+                        
+                        tr.innerHTML = `
+                            <td class="px-4 py-2 text-gray-400 font-bold">${row["No."]}</td>
+                            <td class="px-4 py-2"><span class="${isDup ? 'text-red-700 bg-red-100 font-bold' : 'text-gray-600 bg-gray-100'} text-xs px-2 py-0.5 rounded-md">${row["Status"]}</span></td>
+                            <td class="px-4 py-2 font-bold text-gray-900">${row["LASTNAME"]}</td>
+                            <td class="px-4 py-2">${row["first name"]}</td>
+                            <td class="px-4 py-2">${row["middle name"]}</td>
+                            <td class="px-4 py-2 text-gray-500">${row["Extension Name"]}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    document.getElementById('download-btn').removeAttribute('disabled');
+                    showStatus(`🎉 Tapos na! Pinagsama ang lahat ng entries. Handa na itong i-download.`, 'success');
+
+                } catch (err) {
+                    showStatus(`❌ Error: ${err.message}`, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function downloadExcel() {
+            if (!finalAuditedData.length) return;
+            const ws = XLSX.utils.json_to_sheet(finalAuditedData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Audited Masterlist");
+            XLSX.writeFile(wb, "Audited_Combined_List.xlsx");
+        }
+    </script>
+</body>
+</html>
